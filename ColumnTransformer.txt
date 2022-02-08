@@ -1,0 +1,23 @@
+numeric_features = ["Id", "step","amount","oldBalanceOrig","newBalanceOrig","oldBalanceDest","newBalanceDest","isFlaggedFraud"]
+numeric_transformer = Pipeline(
+    steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]
+)
+
+categorical_features = ["action", "nameOrig", "nameDest"]
+categorical_transformer = OneHotEncoder(handle_unknown="ignore")
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer, numeric_features),
+        ("cat", categorical_transformer, categorical_features),
+    ]
+)
+
+clf = Pipeline(
+    steps=[("preprocessor", preprocessor), ("classifier", LogisticRegression())]
+)
+
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=0)
+
+clf.fit(X_train, Y_train)
+print("model score: %.3f" % clf.score(X_test, Y_test))

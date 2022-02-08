@@ -1,0 +1,76 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
+
+cols = ['step', 'action', 'amount', 'nameOrig', 'oldbalanceOrg', 'newbalanceOrig',
+        'nameDest', 'oldbalanceDest', 'newbalanceDest', 'isFraud', 'isFlaggedFraud']
+df = pd.read_csv('train.csv', header = 0, names = cols)
+print('df.shape:', df.shape)
+df.head()
+
+majority_class = df.isFraud.mode()[0]
+y_pred = np.full(shape = df.isFraud.shape, fill_value = majority_class)
+accuracy_score(df.isFraud, y_pred)
+
+print(classification_report(df.isFraud, y_pred))
+
+from imblearn.under_sampling import RandomUnderSampler
+X = df.drop(['isFraud', 'action', 'nameOrig', 'nameDest'], axis = 1)
+y = df.isFraud
+rus = RandomUnderSampler(sampling_strategy=0.8)
+X_res, y_res = rus.fit_resample(X, y)
+print(X_res.shape, y_res.shape)
+print(pd.value_counts(y_res))
+
+cols_numeric = ['step', 'amount', 'oldbalanceOrg', 'newbalanceOrig',
+                'oldbalanceDest', 'newbalanceDest', 'isFlaggedFraud']
+df_rus = pd.DataFrame(X_res, columns = cols_numeric)
+df_rus.head()
+
+from sklearn.model_selection import train_test_split
+def train_validation_test_split(
+    X, y, train_size=0.8, val_size=0.1, test_size=0.1, 
+    random_state=None, shuffle=True):
+    assert int(train_size + val_size + test_size + 1e-7) == 1
+    X_train_val, X_test, y_train_val, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state, shuffle=shuffle)
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_val, y_train_val,    test_size=val_size/(train_size+val_size), 
+        random_state=random_state, shuffle=shuffle)
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+X_train, X_val, X_test, y_train, y_val, y_test = train_validation_test_split(
+    X_res, y_res, train_size=0.8, val_size=0.1, test_size=0.1, random_state=1)
+class_weight = {0: 4, 1: 5}
+model = LogisticRegression(class_weight=class_weight)
+model.fit(X_train, y_train)
+
+## looking for accuracy score on validation data
+y_pred = model.predict(X_val)
+print(classification_report(y_val, y_pred))
+print('accuracy', accuracy_score(y_val, y_pred))
+
+## test data
+y_pred = model.predict(X_test)
+print(classification_report(y_test, y_pred))
+print('Accuracy', accuracy_score(y_test, y_pred))
+
+## Lastly on the whole unsampled dataset
+y_pred = model.predict(X)
+print(classification_report(y, y_pred))
+print('Accuracy:', accuracy_score(y, y_pred))
+
+## test data
+y_pred = model.predict(X_test)
+print(classification_report(y_test, y_pred))
+print('Accuracy', accuracy_score(y_test, y_pred))
+
+## Lastly on the whole
+y_pred = model.predict(X)
+print(classification_report(y, y_pred))
+print('Accuracy:', accuracy_score(y, y_pred))
